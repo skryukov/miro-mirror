@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head> </head>
+  <body>
+    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+    <script>
+      const icon =
+        '<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/></svg>';
+
+      const download = (data, filename, type) => {
+        const link = document.createElement("a");
+        link.href = `data:${type};filename=${filename};charset=utf-8,${encodeURIComponent(
+          data
+        )}`;
+        link.target = "_blank";
+        link.download = filename;
+        link.click();
+      };
+
+      const mirrorDashboard = async () => {
+        const widgets = await miro.board.widgets.get();
+        const links = widgets
+          .filter((e) => e.type === "LINE")
+          .reduce((acc, cur) => {
+            acc[cur.startWidgetId] ||= [];
+            acc[cur.startWidgetId].push({
+              endId: cur.endWidgetId,
+              startStyle: cur.style.lineStartStyle,
+              endStyle: cur.style.lineEndStyle,
+              caption: cur.captions.map((e) => e.text).join(", "),
+            });
+            return acc;
+          }, {});
+
+        const linkedCards = widgets
+          .filter((e) => e.type === "LINE")
+          .reduce((acc, cur) => acc.add(cur.endWidgetId), new Set());
+
+        const cards = widgets
+          .filter(
+            (e) =>
+              (e.type === "TEXT" || e.type === "STICKER") && e.plainText != ""
+          )
+          .map((c) => ({
+            id: c.id,
+            x: c.x,
+            y: c.y,
+            text: c.text,
+            unlinkedCard: !linkedCards.has(c.id) && !links[c.id],
+            startCard: !linkedCards.has(c.id) && !!links[c.id],
+            links: links[c.id] || [],
+            backgroundColor: c.style.stickerBackgroundColor,
+          }));
+        download(JSON.stringify(cards), "dashboard.json", "text/json");
+      };
+
+      miro.onReady(() => {
+        miro.initialize({
+          extensionPoints: {
+            bottomBar: {
+              title: "Mirror dashboard",
+              svgIcon: icon,
+              onClick: mirrorDashboard,
+            },
+          },
+        });
+      });
+    </script>
+  </body>
+</html>
