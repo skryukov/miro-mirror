@@ -18,6 +18,11 @@
       };
 
       const mirrorDashboard = async () => {
+        const isAuthorized = await miro.isAuthorized();
+        if (!isAuthorized) {
+          await miro.requestAuthorization();
+        }
+
         const widgets = await miro.board.widgets.get();
         const links = widgets
           .filter((e) => e.type === "LINE")
